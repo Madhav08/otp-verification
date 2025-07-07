@@ -1,52 +1,56 @@
 import { db } from "@/app/lib/firebase";
 import { NextResponse } from "next/server";
 
-function normalizePhoneNumber(number: string) {
-  return number.trim(); // normalize if needed
-}
+const OTP_EXPIRY_MINUTES = 5;
 
 export async function POST(request: Request) {
   try {
-    const { phoneNumber, otp } = await request.json();
+    const body = await request.json();
+    const { phone, otp } = body;
 
-    const normalizedPhone = normalizePhoneNumber(phoneNumber);
-
-    const doc = await db.collection("otps").doc(normalizedPhone).get();
-
-    if (!doc.exists) {
+    if (!phone || !otp) {
       return NextResponse.json(
-        { verified: false, message: "No OTP found" },
+        { message: "Phone number and OTP are required" },
         { status: 400 }
       );
     }
 
-    const data = doc.data();
-    if (!data) {
+    const docRef = db.collection("otp_verifications").doc(phone);
+    const docSnap = await docRef.get();
+
+    if (!docSnap.exists) {
       return NextResponse.json(
-        { verified: false, message: "No OTP data" },
-        { status: 400 }
+        { message: "No OTP found for this phone number" },
+        { status: 404 }
       );
     }
 
-    const storedOtp = data.otp;
-    const createdAt = data.createdAt;
+    const data = docSnap.data();
+    const storedOtp = data?.otp;
+    const createdAt = data?.createdAt?.toDate?.();
 
-    const now = Date.now();
-    const isExpired = now - createdAt > 5 * 60 * 1000; // 5 mins
-
-    if (storedOtp === otp && !isExpired) {
-      await db.collection("otps").doc(normalizedPhone).delete();
-      return NextResponse.json({ verified: true });
-    } else {
-      return NextResponse.json(
-        { verified: false, message: "Invalid or expired OTP" },
-        { status: 400 }
-      );
+    // Check if OTP matches
+    if (storedOtp !== otp) {
+      return NextResponse.json({ message: "Invalid OTP" }, { status: 401 });
     }
+
+    // Check expiry
+    const now = new Date();
+    const diffMinutes = createdAt
+      ? (now.getTime() - createdAt.getTime()) / (1000 * 60)
+      : Infinity;
+
+    if (diffMinutes > OTP_EXPIRY_MINUTES) {
+      return NextResponse.json({ message: "OTP expired" }, { status: 410 });
+    }
+
+    // Mark OTP as verified
+    await docRef.update({ verified: true });
+
+    return NextResponse.json({ message: "OTP verified successfully" });
   } catch (error: any) {
-    console.error("Verify OTP error:", error);
     return NextResponse.json(
-      { verified: false, message: error.message || "Failed to verify OTP" },
+      { message: "Internal Server Error", error: error.message },
       { status: 500 }
     );
   }

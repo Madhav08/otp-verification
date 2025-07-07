@@ -1,16 +1,20 @@
+import { storeOtp } from "@/app/lib/otp-store";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
+  function generateOtp(): string {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  }
+
   try {
     const body = await request.json();
-    const { sms_text, numbers } = body;
+    const { numbers } = body;
 
-    if (
-      !sms_text ||
-      !numbers ||
-      !Array.isArray(numbers) ||
-      numbers.length === 0
-    ) {
+    const OTP = generateOtp();
+
+    const sms_text = `Your OTP is ${OTP}`;
+
+    if (!numbers || !Array.isArray(numbers) || numbers.length === 0) {
       return NextResponse.json(
         { message: "sms_text and numbers are required" },
         { status: 400 }
@@ -45,6 +49,8 @@ export async function POST(request: Request) {
         { status: response.status }
       );
     }
+
+    storeOtp(numbers[0], OTP);
 
     return NextResponse.json({ message: "SMS sent successfully", data });
   } catch (error: any) {

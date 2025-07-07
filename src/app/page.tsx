@@ -1,4 +1,3 @@
-// pages/index.js
 "use client";
 
 import { useState, FormEvent } from "react";
@@ -10,8 +9,8 @@ type Result = {
 };
 
 export default function Home() {
-  const [smsText, setSmsText] = useState("");
   const [numbers, setNumbers] = useState("");
+  const [otp, setOtp] = useState("");
   const [result, setResult] = useState<Result | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -23,10 +22,8 @@ export default function Home() {
       .map((num) => num.trim())
       .filter((num) => num.startsWith("+61"));
 
-    if (!smsText || numbersArray.length === 0) {
-      alert(
-        "Please enter a message and at least one valid number starting with +61"
-      );
+    if (numbersArray.length === 0) {
+      alert("Please enter at least one valid number starting with +61");
       return;
     }
 
@@ -40,9 +37,44 @@ export default function Home() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          sms_text: smsText,
           numbers: numbersArray,
         }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setResult({ success: true, message: data.message, data: data.data });
+      } else {
+        setResult({ success: false, message: data.message });
+      }
+    } catch (error: any) {
+      setResult({ success: false, message: error.message });
+    }
+
+    setLoading(false);
+  };
+
+  const handleVerify = async (e: FormEvent) => {
+    e.preventDefault();
+
+    const phone = numbers.split(",")[0]?.trim();
+
+    if (!phone || !otp) {
+      alert("Please enter phone number and OTP to verify.");
+      return;
+    }
+
+    setLoading(true);
+    setResult(null);
+
+    try {
+      const res = await fetch("/api/verify-otp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ phone, otp }),
       });
 
       const data = await res.json();
@@ -70,18 +102,6 @@ export default function Home() {
       <h1>Send SMS via Cellcast API</h1>
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: "1rem" }}>
-          <label htmlFor="smsText">Message:</label>
-          <br />
-          <textarea
-            id="smsText"
-            rows={4}
-            style={{ width: "100%" }}
-            value={smsText}
-            onChange={(e) => setSmsText(e.target.value)}
-            required
-          />
-        </div>
-        <div style={{ marginBottom: "1rem" }}>
           <label htmlFor="numbers">
             Phone Numbers (comma separated, start with +61):
           </label>
@@ -98,6 +118,26 @@ export default function Home() {
         </div>
         <button type="submit" disabled={loading}>
           {loading ? "Sending..." : "Send SMS"}
+        </button>
+      </form>
+
+      <h1>VERIFY OTP for {numbers.split(",")[0]?.trim() || "phone number"}</h1>
+      <form onSubmit={handleVerify}>
+        <div style={{ marginBottom: "1rem" }}>
+          <label htmlFor="otp">Enter OTP:</label>
+          <br />
+          <input
+            id="otp"
+            type="text"
+            style={{ width: "100%" }}
+            value={otp}
+            onChange={(e) => setOtp(e.target.value)}
+            placeholder="123456"
+            required
+          />
+        </div>
+        <button type="submit" disabled={loading}>
+          {loading ? "Verifying..." : "Verify OTP"}
         </button>
       </form>
 
