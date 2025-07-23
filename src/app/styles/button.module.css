@@ -1,0 +1,24 @@
+.buttonMain {
+  background-color: #ff5f00;
+  color: white;
+  font-family: "Poppins", sans-serif;
+  font-weight: bold;
+  border: none;
+  font-size: 1rem;
+  padding: 12px 20px;
+  border-radius: 10px;
+  width: 200px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.buttonMain:hover,
+.buttonMain:focus {
+  background-color: #ffa366;
+  box-shadow: 0 0 8px rgba(255, 95, 0, 0.4);
+}
+
+.buttonMain:disabled {
+  background-color: #bfbfbf;
+  cursor: not-allowed;
+}

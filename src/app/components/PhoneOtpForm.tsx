@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, useEffect, useRef } from "react";
+import Input from "./Input";
+import Button from "./Button";
 
 type Props = {
   onResult: (result: { success: boolean; message: string; data?: any }) => void;
@@ -11,6 +13,24 @@ export default function PhoneOtpForm({ onResult }: Props) {
   const [otp, setOtp] = useState("");
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const messageTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Auto-clear message after 5 seconds
+  useEffect(() => {
+    if (message) {
+      if (messageTimeoutRef.current) {
+        clearTimeout(messageTimeoutRef.current);
+      }
+      messageTimeoutRef.current = setTimeout(() => {
+        setMessage(null);
+      }, 5000);
+    }
+
+    return () => {
+      if (messageTimeoutRef.current) clearTimeout(messageTimeoutRef.current);
+    };
+  }, [message]);
 
   const safeJson = async (res: Response) => {
     try {
@@ -24,8 +44,9 @@ export default function PhoneOtpForm({ onResult }: Props) {
   const handleSend = async (e: FormEvent) => {
     e.preventDefault();
     const formatted = phone.trim().replace(/^0/, "").replace(/\s+/g, "");
+
     if (!formatted.match(/^\d{9}$/)) {
-      alert("Please enter a valid 9-digit Australian mobile number.");
+      setMessage("Please enter a valid 9-digit Australian mobile number.");
       return;
     }
 
@@ -40,12 +61,14 @@ export default function PhoneOtpForm({ onResult }: Props) {
 
     const data = await safeJson(res);
     setSent(res.ok);
+    setMessage(data.message);
     onResult({ success: res.ok, message: data.message, data: data.data });
     setLoading(false);
   };
 
   const handleVerify = async (e: FormEvent) => {
     e.preventDefault();
+
     const fullNumber = `+61${phone
       .trim()
       .replace(/^0/, "")
@@ -63,50 +86,64 @@ export default function PhoneOtpForm({ onResult }: Props) {
     setLoading(false);
 
     if (res.ok) {
-      // ✅ Auto-copy verified phone number
+      setMessage(`${fullNumber} verified and copied to clipboard!`);
       try {
         await navigator.clipboard.writeText(fullNumber);
-        alert(`${fullNumber} copied to clipboard!`);
       } catch {
-        alert("Failed to copy phone number.");
+        setMessage("Verified but failed to copy phone number.");
       }
 
       setPhone("");
       setOtp("");
       setSent(false);
+    } else {
+      setMessage(data.message || "Verification failed.");
     }
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPhone(e.target.value);
+    if (message) setMessage(null);
   };
 
   return (
     <div>
       <h2>Phone Verification</h2>
+
+      {message && (
+        <div style={{ margin: "1rem 0", color: "#ff5f00", fontWeight: 500 }}>
+          {message}
+        </div>
+      )}
+
       {!sent ? (
         <form onSubmit={handleSend}>
-          <input
+          <Input
             type="text"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            onChange={handlePhoneChange}
             placeholder="Enter phone (e.g. 400000000)"
-            disabled={loading}
-            style={{ width: "100%", marginBottom: 8 }}
           />
-          <button type="submit" disabled={loading}>
-            {loading ? "Sending..." : "Send OTP"}
-          </button>
+
+          <Button
+            btnText={loading ? "Sending..." : "Send OTP"}
+            disabled={loading}
+            type="submit"
+          />
         </form>
       ) : (
         <form onSubmit={handleVerify}>
-          <input
+          <Input
             type="text"
             value={otp}
             onChange={(e) => setOtp(e.target.value)}
             placeholder="Enter OTP"
-            disabled={loading}
-            style={{ width: "100%", marginBottom: 8 }}
           />
-          <button type="submit" disabled={loading}>
-            {loading ? "Verifying..." : "Verify OTP"}
-          </button>
+          <Button
+            btnText={loading ? "Verifying..." : "Verify OTP"}
+            disabled={loading}
+            type="submit"
+          />
         </form>
       )}
     </div>

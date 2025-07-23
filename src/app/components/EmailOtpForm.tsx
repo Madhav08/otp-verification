@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, useEffect, useRef } from "react";
+import Input from "./Input";
+import Button from "./Button";
 
 type Props = {
   onResult: (result: { success: boolean; message: string; data?: any }) => void;
@@ -11,6 +13,24 @@ export default function EmailOtpForm({ onResult }: Props) {
   const [otp, setOtp] = useState("");
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const messageTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Clears message when user starts typing a new email
+  useEffect(() => {
+    if (message) {
+      if (messageTimeoutRef.current) {
+        clearTimeout(messageTimeoutRef.current);
+      }
+      messageTimeoutRef.current = setTimeout(() => {
+        setMessage(null);
+      }, 5000); // Clear after 5 seconds
+    }
+
+    return () => {
+      if (messageTimeoutRef.current) clearTimeout(messageTimeoutRef.current);
+    };
+  }, [message]);
 
   const safeJson = async (res: Response) => {
     try {
@@ -25,7 +45,7 @@ export default function EmailOtpForm({ onResult }: Props) {
     e.preventDefault();
 
     if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-      alert("Please enter a valid email.");
+      setMessage("Please enter a valid email.");
       return;
     }
 
@@ -38,6 +58,7 @@ export default function EmailOtpForm({ onResult }: Props) {
 
     const data = await safeJson(res);
     setSent(res.ok);
+    setMessage(data.message);
     onResult({ success: res.ok, message: data.message, data: data.data });
     setLoading(false);
   };
@@ -57,50 +78,63 @@ export default function EmailOtpForm({ onResult }: Props) {
     setLoading(false);
 
     if (res.ok) {
-      // ✅ Auto-copy verified email
+      setMessage(`${email} verified and copied to clipboard!`);
       try {
         await navigator.clipboard.writeText(email);
-        alert(`${email} copied to clipboard!`);
       } catch {
-        alert("Failed to copy email.");
+        setMessage("Verified but failed to copy email.");
       }
 
       setEmail("");
       setOtp("");
       setSent(false);
+    } else {
+      setMessage(data.message || "Verification failed.");
     }
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+    if (message) setMessage(null);
   };
 
   return (
     <div>
       <h2>Email Verification</h2>
+
+      {message && (
+        <div style={{ margin: "1rem 0", color: "#ff5f00", fontWeight: 500 }}>
+          {message}
+        </div>
+      )}
+
       {!sent ? (
         <form onSubmit={handleSend}>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+          <Input
             placeholder="Enter email address"
-            disabled={loading}
-            style={{ width: "100%", marginBottom: 8 }}
+            value={email}
+            onChange={handleEmailChange}
+            type="email"
           />
-          <button type="submit" disabled={loading}>
-            {loading ? "Sending..." : "Send Email OTP"}
-          </button>
+          <Button
+            btnText={loading ? "Sending..." : "Send Email OTP"}
+            disabled={loading}
+            type="submit"
+          />
         </form>
       ) : (
         <form onSubmit={handleVerify}>
-          <input
-            type="text"
+          <Input
+            placeholder="Enter OTP"
             value={otp}
             onChange={(e) => setOtp(e.target.value)}
-            placeholder="Enter OTP"
-            disabled={loading}
-            style={{ width: "100%", marginBottom: 8 }}
+            type="number"
           />
-          <button type="submit" disabled={loading}>
-            {loading ? "Verifying..." : "Verify Email OTP"}
-          </button>
+          <Button
+            btnText={loading ? "Verifying..." : "Verify Email OTP"}
+            disabled={loading}
+            type="submit"
+          />
         </form>
       )}
     </div>
