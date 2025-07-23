@@ -10,11 +10,31 @@ type Result = {
 
 export default function Home() {
   const [numbers, setNumbers] = useState("");
+  const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
+  const [emailOtp, setEmailOtp] = useState("");
   const [result, setResult] = useState<Result | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: FormEvent) => {
+  const safeJson = async (res: Response) => {
+    try {
+      const text = await res.text();
+      return text ? JSON.parse(text) : {};
+    } catch {
+      return {};
+    }
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      alert(`${text} copied to clipboard!`);
+    } catch {
+      alert("Failed to copy to clipboard.");
+    }
+  };
+
+  const handleSendSMS = async (e: FormEvent) => {
     e.preventDefault();
 
     const numbersArray = numbers
@@ -36,12 +56,10 @@ export default function Home() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          numbers: numbersArray,
-        }),
+        body: JSON.stringify({ numbers: numbersArray }),
       });
 
-      const data = await res.json();
+      const data = await safeJson(res);
 
       if (res.ok) {
         setResult({ success: true, message: data.message, data: data.data });
@@ -55,7 +73,7 @@ export default function Home() {
     setLoading(false);
   };
 
-  const handleVerify = async (e: FormEvent) => {
+  const handleVerifySMS = async (e: FormEvent) => {
     e.preventDefault();
 
     const phone = numbers.split(",")[0]?.trim();
@@ -71,16 +89,84 @@ export default function Home() {
     try {
       const res = await fetch("/api/verify-otp", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone, otp }),
       });
 
-      const data = await res.json();
+      const data = await safeJson(res);
 
       if (res.ok) {
         setResult({ success: true, message: data.message, data: data.data });
+        if (data.data?.phone) {
+          copyToClipboard(data.data.phone);
+        }
+      } else {
+        setResult({ success: false, message: data.message });
+      }
+    } catch (error: any) {
+      setResult({ success: false, message: error.message });
+    }
+
+    setLoading(false);
+  };
+
+  const handleSendEmail = async (e: FormEvent) => {
+    e.preventDefault();
+
+    if (!email) {
+      alert("Please enter an email address.");
+      return;
+    }
+
+    setLoading(true);
+    setResult(null);
+
+    try {
+      const res = await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await safeJson(res);
+
+      if (res.ok) {
+        setResult({ success: true, message: data.message, data: data.data });
+      } else {
+        setResult({ success: false, message: data.message });
+      }
+    } catch (error: any) {
+      setResult({ success: false, message: error.message });
+    }
+
+    setLoading(false);
+  };
+
+  const handleVerifyEmail = async (e: FormEvent) => {
+    e.preventDefault();
+
+    if (!email || !emailOtp) {
+      alert("Please enter email and OTP.");
+      return;
+    }
+
+    setLoading(true);
+    setResult(null);
+
+    try {
+      const res = await fetch("/api/verify-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, code: emailOtp }),
+      });
+
+      const data = await safeJson(res);
+
+      if (res.ok) {
+        setResult({ success: true, message: data.message, data: data.data });
+        if (email) {
+          copyToClipboard(data.data.phone);
+        }
       } else {
         setResult({ success: false, message: data.message });
       }
@@ -99,45 +185,66 @@ export default function Home() {
         fontFamily: "Arial, sans-serif",
       }}
     >
-      <h1>Send SMS via Cellcast API</h1>
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: "1rem" }}>
-          <label htmlFor="numbers">
-            Phone Numbers (comma separated, start with +61):
-          </label>
-          <br />
-          <input
-            id="numbers"
-            type="text"
-            style={{ width: "100%" }}
-            value={numbers}
-            onChange={(e) => setNumbers(e.target.value)}
-            placeholder="+61400000000, +61400000001"
-            required
-          />
-        </div>
+      <h1>SMS OTP Verification</h1>
+      <form onSubmit={handleSendSMS}>
+        <label htmlFor="numbers">
+          Phone Numbers (comma separated, start with +61):
+        </label>
+        <br />
+        <input
+          id="numbers"
+          type="text"
+          style={{ width: "100%", marginBottom: "1rem" }}
+          value={numbers}
+          onChange={(e) => setNumbers(e.target.value)}
+          placeholder="+61400000000, +61400000001"
+        />
         <button type="submit" disabled={loading}>
-          {loading ? "Sending..." : "Send SMS"}
+          {loading ? "Sending..." : "Send SMS OTP"}
         </button>
       </form>
 
-      <h1>VERIFY OTP for {numbers.split(",")[0]?.trim() || "phone number"}</h1>
-      <form onSubmit={handleVerify}>
-        <div style={{ marginBottom: "1rem" }}>
-          <label htmlFor="otp">Enter OTP:</label>
-          <br />
-          <input
-            id="otp"
-            type="text"
-            style={{ width: "100%" }}
-            value={otp}
-            onChange={(e) => setOtp(e.target.value)}
-            placeholder="123456"
-            required
-          />
-        </div>
+      <form onSubmit={handleVerifySMS}>
+        <h2>Verify SMS OTP</h2>
+        <input
+          type="text"
+          style={{ width: "100%", marginBottom: "1rem" }}
+          value={otp}
+          onChange={(e) => setOtp(e.target.value)}
+          placeholder="Enter SMS OTP"
+        />
         <button type="submit" disabled={loading}>
-          {loading ? "Verifying..." : "Verify OTP"}
+          {loading ? "Verifying..." : "Verify SMS"}
+        </button>
+      </form>
+
+      <hr style={{ margin: "2rem 0" }} />
+
+      <h1>Email OTP Verification</h1>
+      <form onSubmit={handleSendEmail}>
+        <input
+          type="email"
+          style={{ width: "100%", marginBottom: "1rem" }}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Enter email address"
+        />
+        <button type="submit" disabled={loading}>
+          {loading ? "Sending..." : "Send Email OTP"}
+        </button>
+      </form>
+
+      <form onSubmit={handleVerifyEmail}>
+        <h2>Verify Email OTP</h2>
+        <input
+          type="text"
+          style={{ width: "100%", marginBottom: "1rem" }}
+          value={emailOtp}
+          onChange={(e) => setEmailOtp(e.target.value)}
+          placeholder="Enter Email OTP"
+        />
+        <button type="submit" disabled={loading}>
+          {loading ? "Verifying..." : "Verify Email"}
         </button>
       </form>
 

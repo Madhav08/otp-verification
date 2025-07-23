@@ -53,10 +53,17 @@ export async function POST(request: Request) {
     storeOtp(numbers[0], OTP);
 
     return NextResponse.json({ message: "SMS sent successfully", data });
-  } catch (error: any) {
-    return NextResponse.json(
-      { message: "Internal Server Error", error: error.message },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      return NextResponse.json(
+        { message: "Internal Server Error", error: error.message },
+        { status: 500 }
+      );
+    } else {
+      return NextResponse.json(
+        { message: "Internal Server Error", error: "Unknown error" },
+        { status: 500 }
+      );
+    }
   }
 }

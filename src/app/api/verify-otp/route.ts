@@ -48,10 +48,17 @@ export async function POST(request: Request) {
     await docRef.update({ verified: true });
 
     return NextResponse.json({ message: "OTP verified successfully" });
-  } catch (error: any) {
-    return NextResponse.json(
-      { message: "Internal Server Error", error: error.message },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      return NextResponse.json(
+        { message: "Internal Server Error", error: error.message },
+        { status: 500 }
+      );
+    } else {
+      return NextResponse.json(
+        { message: "Internal Server Error", error: "Unknown error" },
+        { status: 500 }
+      );
+    }
   }
 }

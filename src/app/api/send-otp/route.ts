@@ -41,8 +41,12 @@ export async function POST(request: Request) {
     console.log("OTP sent via Twilio, message SID:", message.sid);
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    console.error("Error sending OTP:", error?.message || error);
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error("Error sending OTP:", error.message);
+    } else {
+      console.error("Unknown error sending OTP:", error);
+    }
     return NextResponse.json(
       { error: "Failed to send OTP. Check logs for details." },
       { status: 500 }
