@@ -3,17 +3,19 @@
 import { useState } from "react";
 import PhoneOtpForm from "./components/PhoneOtpForm";
 import EmailOtpForm from "./components/EmailOtpForm";
-import ResultMessage from "./components/ResultMessage";
 import styles from "./styles/mainpage.module.css";
 import Image from "next/image";
 import logo from "./images/Sixt_Logo.svg";
 
+type ResultType = {
+  success: boolean;
+  message: string;
+  data?: unknown;
+};
+
 export default function Home() {
-  const [result, setResult] = useState<{
-    success: boolean;
-    message: string;
-    data?: any;
-  } | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [result, setResult] = useState<ResultType | null>(null);
 
   return (
     <div>
@@ -28,7 +30,6 @@ export default function Home() {
         <PhoneOtpForm onResult={setResult} />
         <hr style={{ height: "300px" }} />
         <EmailOtpForm onResult={setResult} />
-        {/* <ResultMessage result={result} /> */}
       </div>
     </div>
   );

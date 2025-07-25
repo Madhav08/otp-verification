@@ -6,7 +6,11 @@ import Button from "./Button";
 import styles from "../styles/mainpage.module.css";
 
 type Props = {
-  onResult: (result: { success: boolean; message: string; data?: any }) => void;
+  onResult: (result: {
+    success: boolean;
+    message: string;
+    data?: unknown;
+  }) => void;
 };
 
 export default function PhoneOtpForm({ onResult }: Props) {
@@ -15,10 +19,8 @@ export default function PhoneOtpForm({ onResult }: Props) {
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [messageColor, setMessageColor] = useState<string>("#ff5f00");
   const messageTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Auto-clear message after 1 minutes
   useEffect(() => {
     if (message) {
       if (messageTimeoutRef.current) {
@@ -26,7 +28,7 @@ export default function PhoneOtpForm({ onResult }: Props) {
       }
       messageTimeoutRef.current = setTimeout(() => {
         setMessage(null);
-      }, 60000);
+      }, 60000); // 1 minute
     }
 
     return () => {
@@ -34,7 +36,7 @@ export default function PhoneOtpForm({ onResult }: Props) {
     };
   }, [message]);
 
-  const safeJson = async (res: Response) => {
+  const safeJson = async (res: Response): Promise<Record<string, unknown>> => {
     try {
       const text = await res.text();
       return text ? JSON.parse(text) : {};
@@ -63,8 +65,12 @@ export default function PhoneOtpForm({ onResult }: Props) {
 
     const data = await safeJson(res);
     setSent(res.ok);
-    setMessage(data.message);
-    onResult({ success: res.ok, message: data.message, data: data.data });
+    setMessage(typeof data.message === "string" ? data.message : "OTP sent.");
+    onResult({
+      success: res.ok,
+      message: data.message as string,
+      data: data.data,
+    });
     setLoading(false);
   };
 
@@ -86,9 +92,15 @@ export default function PhoneOtpForm({ onResult }: Props) {
       });
 
       const data = await safeJson(res);
-      setMessage(data.message);
-      onResult({ success: res.ok, message: data.message, data: data.data });
-    } catch (error) {
+      setMessage(
+        typeof data.message === "string" ? data.message : "OTP resent."
+      );
+      onResult({
+        success: res.ok,
+        message: data.message as string,
+        data: data.data,
+      });
+    } catch {
       setMessage("Failed to resend OTP. Please try again.");
     } finally {
       setLoading(false);
@@ -119,7 +131,11 @@ export default function PhoneOtpForm({ onResult }: Props) {
     });
 
     const data = await safeJson(res);
-    onResult({ success: res.ok, message: data.message, data: data.data });
+    onResult({
+      success: res.ok,
+      message: data.message as string,
+      data: data.data,
+    });
     setLoading(false);
 
     if (res.ok) {
@@ -134,7 +150,9 @@ export default function PhoneOtpForm({ onResult }: Props) {
       setOtp("");
       setSent(false);
     } else {
-      setMessage(data.message || "Verification failed.");
+      setMessage(
+        typeof data.message === "string" ? data.message : "Verification failed."
+      );
     }
   };
 
@@ -156,7 +174,6 @@ export default function PhoneOtpForm({ onResult }: Props) {
             placeholder="Enter phone (e.g. 400000000)"
             id="phoneMain"
           />
-
           <Button
             btnText={loading ? "Sending..." : "Send OTP to Phone"}
             disabled={loading}
@@ -184,7 +201,7 @@ export default function PhoneOtpForm({ onResult }: Props) {
         <div
           style={{
             margin: "1rem 0",
-            color: `${messageColor}`,
+            color: sent ? "green" : "#ff5f00",
             fontWeight: 500,
             maxWidth: "430px",
             overflowWrap: "break-word",
