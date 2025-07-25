@@ -3,6 +3,7 @@
 import { useState, FormEvent, useEffect, useRef } from "react";
 import Input from "./Input";
 import Button from "./Button";
+import styles from "../styles/mainpage.module.css";
 
 type Props = {
   onResult: (result: { success: boolean; message: string; data?: any }) => void;
@@ -13,10 +14,10 @@ export default function EmailOtpForm({ onResult }: Props) {
   const [otp, setOtp] = useState("");
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>("");
+  const [messageColor, setMessageColor] = useState<string>("#ff5f00");
   const messageTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Clears message when user starts typing a new email
   useEffect(() => {
     if (message) {
       if (messageTimeoutRef.current) {
@@ -24,7 +25,7 @@ export default function EmailOtpForm({ onResult }: Props) {
       }
       messageTimeoutRef.current = setTimeout(() => {
         setMessage(null);
-      }, 5000); // Clear after 5 seconds
+      }, 60000); // Clear after 1 minutes seconds
     }
 
     return () => {
@@ -63,6 +64,39 @@ export default function EmailOtpForm({ onResult }: Props) {
     setLoading(false);
   };
 
+  const handleResend = async () => {
+    if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+      setMessage("Please enter a valid email before resending OTP.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await res.json();
+      setMessage(data.message);
+      onResult({ success: res.ok, message: data.message, data: data.data });
+    } catch (error) {
+      setMessage("Failed to resend OTP. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReset = () => {
+    setEmail("");
+    setOtp("");
+    setSent(false);
+    setLoading(false);
+    setMessage(null);
+  };
+
   const handleVerify = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -78,6 +112,7 @@ export default function EmailOtpForm({ onResult }: Props) {
     setLoading(false);
 
     if (res.ok) {
+      setMessageColor("green");
       setMessage(`${email} verified and copied to clipboard!`);
       try {
         await navigator.clipboard.writeText(email);
@@ -99,25 +134,20 @@ export default function EmailOtpForm({ onResult }: Props) {
   };
 
   return (
-    <div>
+    <div className={styles.formContainer}>
       <h2>Email Verification</h2>
 
-      {message && (
-        <div style={{ margin: "1rem 0", color: "#ff5f00", fontWeight: 500 }}>
-          {message}
-        </div>
-      )}
-
       {!sent ? (
-        <form onSubmit={handleSend}>
+        <form onSubmit={handleSend} className={styles.layoutForm}>
           <Input
             placeholder="Enter email address"
             value={email}
             onChange={handleEmailChange}
             type="email"
+            id="emailMain"
           />
           <Button
-            btnText={loading ? "Sending..." : "Send Email OTP"}
+            btnText={loading ? "Sending..." : "Send OTP to Email"}
             disabled={loading}
             type="submit"
           />
@@ -129,6 +159,7 @@ export default function EmailOtpForm({ onResult }: Props) {
             value={otp}
             onChange={(e) => setOtp(e.target.value)}
             type="number"
+            id="emailOTP"
           />
           <Button
             btnText={loading ? "Verifying..." : "Verify Email OTP"}
@@ -136,6 +167,52 @@ export default function EmailOtpForm({ onResult }: Props) {
             type="submit"
           />
         </form>
+      )}
+
+      {message && (
+        <div
+          style={{
+            margin: "1rem 0",
+            color: `${messageColor}`,
+            fontWeight: 500,
+            maxWidth: "430px",
+            overflowWrap: "break-word",
+          }}
+        >
+          {message}
+          {" | "}
+          <button
+            onClick={handleResend}
+            disabled={loading}
+            style={{
+              background: "none",
+              border: "none",
+              color: "#0070f3",
+              textDecoration: "underline",
+              cursor: loading ? "not-allowed" : "pointer",
+              padding: 0,
+              fontWeight: "bold",
+            }}
+          >
+            Resend
+          </button>
+          {" | "}
+          <button
+            onClick={handleReset}
+            disabled={loading}
+            style={{
+              background: "none",
+              border: "none",
+              color: "#0070f3",
+              textDecoration: "underline",
+              cursor: loading ? "not-allowed" : "pointer",
+              padding: 0,
+              fontWeight: "bold",
+            }}
+          >
+            Reset
+          </button>
+        </div>
       )}
     </div>
   );

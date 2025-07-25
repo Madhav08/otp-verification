@@ -5,9 +5,16 @@ type InputProps = {
   value: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   type?: string;
+  id?: string;
 };
 
-const Input = ({ placeholder, value, onChange, type = "text" }: InputProps) => {
+const Input = ({
+  placeholder,
+  value,
+  onChange,
+  type = "text",
+  id,
+}: InputProps) => {
   return (
     <input
       type={type}
@@ -15,6 +22,7 @@ const Input = ({ placeholder, value, onChange, type = "text" }: InputProps) => {
       placeholder={placeholder}
       value={value}
       onChange={onChange}
+      id={id}
     />
   );
 };

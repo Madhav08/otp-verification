@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({
-      message: "OTP sent to email successfully.",
+      message: `OTP sent to ${email} successfully. Did't received? `,
       data: { email },
     });
   } catch (error: unknown) {

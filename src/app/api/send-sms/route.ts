@@ -52,7 +52,10 @@ export async function POST(request: Request) {
 
     storeOtp(numbers[0], OTP);
 
-    return NextResponse.json({ message: "SMS sent successfully", data });
+    return NextResponse.json({
+      message: `SMS sent successfully to ${numbers}`,
+      data,
+    });
   } catch (error: unknown) {
     if (error instanceof Error) {
       return NextResponse.json(

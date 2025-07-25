@@ -1,0 +1,21 @@
+.layoutMain {
+  margin: 15rem auto;
+  display: flex;
+  flex-direction: row;
+  gap: 24px;
+  text-align: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.logo {
+  position: absolute;
+  top: 50px;
+  left: 50px;
+}
+
+.formContainer {
+  padding-top: 60px;
+  max-width: 450px;
+  width: 100%;
+}
